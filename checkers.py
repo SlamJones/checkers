@@ -589,6 +589,8 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
         print("^^ END check_for_move\n")
     return(piece,moved)
 
+## TEST ##
+
 
 def scan_boxes(window,boxes,start_box,piece,turn,pieces):
     ## Takes a start_box and piece to determine starting position
