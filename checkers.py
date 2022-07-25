@@ -27,8 +27,11 @@ settings = {
 
 
 ## CURRENT ISSUES ##
-## Need to allow for multi-jumps ##
-## Perhaps, after a capture is made, look for further captures? ##
+## Can make multijumps, however:
+## In multijumps, after first jump, piece sometimes disobeys straight-line law (makes curved jumps) ##
+## In multijumps, sometimes a multijump is not recognized if a move takes a piece to the edge of the board ##
+## Does not find multijumps greater than 2 ##
+## Recursion? ##
 
 
 ## Works perfectly ##
@@ -53,7 +56,6 @@ def main():
     ## Draw grid and boxes ##
     draw_grid_outline(window,x1,x2,y1,y2)
     boxes = draw_grid(window,x1,x2,y1,y2)
-    pass
     
     ## Draw pieces ##
     pieces = setup_checkers(window,boxes)
@@ -422,6 +424,45 @@ def check_for_upgrade(piece,boxes):
     return(piece)
 
 
+## Works perfectly ##
+## Takes a clickPoint and the boxes list ##
+## Returns the box that was clicked upon, or None if no box was clicked ##
+def which_box(clickPoint,boxes):
+    for box in boxes:
+        if (clickPoint.getX() >= box["center_x"] - box["radius"]) and (clickPoint.getX() <= box["center_x"] + box["radius"]) and (clickPoint.getY() >= box["center_y"] - box["radius"]) and (clickPoint.getY() <= box["center_y"] + box["radius"]):
+            return(box)
+    return(None)
+
+
+## Works perfectly ##
+## Takes a click and a single box, and tells if click coords are within box coords ##
+## Returns True or False ##
+def compare_click(clickPoint,box):
+    if (clickPoint.getX() >= box["center_x"] - box["radius"]) and (clickPoint.getX() <= box["center_x"] + box["radius"]) and (clickPoint.getY() >= box["center_y"] - box["radius"]) and (clickPoint.getY() <= box["center_y"] + box["radius"]):
+        return(True)
+    return(False)
+
+
+## Works perfectly ##
+## Takes two boxes are returns True if they occupy the same coordinates ##
+def compare_box_coords(box_a,box_b):
+    if box_a["x"] == box_b["x"] and box_a["y"] == box_b["y"]:
+        return(True)
+    return(False)
+
+
+
+
+## ##
+
+## ##
+
+## ##
+
+
+
+
+## Main function called by main() to progress the game ##
 ## Works well enough for now ##
 def check_click(window,boxes,turn,pieces,info_boxes):
     ## Controlling function that interprets player input ##
@@ -475,13 +516,42 @@ def check_click(window,boxes,turn,pieces,info_boxes):
     return(moved)
 
 
-## Takes a clickPoint and the boxes list ##
-## Returns the box that was clicked upon, or None if no box was clicked ##
-def which_box(clickPoint,boxes):
+## Takes a piece to remove, finds the piece in piece list and removes it ##
+## Then finds the box the piece was in and resets the "side" variable ##
+## To remove multiple pieces, run this function for each piece ##
+def remove_piece(window,boxes,pieces,to_remove):
+    for piece in pieces:
+        if to_remove["x"] == piece["x"] and to_remove["y"] == piece["y"]:
+            piece["obj"].undraw()
+            pieces.remove(piece)
     for box in boxes:
-        if (clickPoint.getX() >= box["center_x"] - box["radius"]) and (clickPoint.getX() <= box["center_x"] + box["radius"]) and (clickPoint.getY() >= box["center_y"] - box["radius"]) and (clickPoint.getY() <= box["center_y"] + box["radius"]):
-            return(box)
-    return(None)
+        if to_remove["x"] == box["x"] and to_remove["y"] == box["y"]:
+            box["side"] = ""
+            print("side data removed from box")
+    return(boxes,pieces)
+
+
+## Takes a list of possible moves, and check for further possible moves ##
+def compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn):
+    kill = []
+    further_possible_moves = []
+    for possible_move in possible_moves:
+        if possible_move["type"] == "jump" or possible_move["type"] == "multi":
+            ## kill contains a list of boxes with a piece to be removed during a multijump ##
+            kill = possible_move["mid"]
+            if settings["debug"]:
+                print("scanning for multijumps from "+str(possible_move["end"]))
+            further_possible_moves = scan_boxes(
+                window,boxes,possible_move["end"],piece,turn,pieces,True,kill)
+    return(further_possible_moves)
+
+
+## Take list of possible moves and highlights the "end" boxes ##
+def calc_to_flash(possible_moves):
+    to_flash = []
+    for possible_move in possible_moves:
+        to_flash.append(possible_move["end"])
+    return(to_flash)
 
 
 ## Player has clicked on a piece that they own ##
@@ -497,40 +567,29 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
     multijump = False
     capture_jump = ""
     can_capture_list = []
+    to_flash = []
+    kill = ""
     
-    ## Returns several lists ##
-    ## Surely we can reduce this number ##
-    ## capture_jump_list is used to determine which pieces can be jumped over
-    ## to_flash is used to determine which squares to highlight
-    ## can_jump_to is used to identify where piece ends up after jump
-    ## can_capture is used to identify which piece to remove from board
-    capture_jump_list,to_flash,can_jump_to,can_capture,where,multijump = scan_boxes(
-        window,boxes,start_box,piece,turn,pieces)
-    can_capture_list.append(can_capture)
+    possible_moves = scan_boxes(window,boxes,start_box,piece,turn,pieces,False,kill)
+    to_flash = calc_to_flash(possible_moves)
     
-    #try:
-    #    if multijump:
-    #        capture_jump_list2,to_flash2,can_jump_to2,can_capture2,where2,multijump = scan_boxes(
-    #            window,boxes,can_jump_to,piece,turn,pieces)
-    #    capture_jump_list = capture_jump_list + capture_jump_list2
-    #    can_capture_list.append(can_capture2)
-    #except:
-    #    pass
+    further_possible_moves = compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn)
+    further_to_flash = calc_to_flash(further_possible_moves)
     
-    if settings["debug"]:
-        print("\nto_flash before appending jump_to: "+str(to_flash))
-    
-    ## If there is anything in capture_jump_list, then add it to to_flash list ##
-    ## parts of capture_jump_list are merged into to_flash list ##
-    for capture_jump in capture_jump_list:
-        if len(capture_jump) > 0:
-            if len(capture_jump["jump_to"]) > 0:
-                to_flash.append(capture_jump["jump_to"])
-                
-    if settings["debug"]:
-        print("to_flash after appending jump_to: "+str(to_flash)+"\n")
-    if settings["debug"]:
-        print("\nto_flash: "+str(to_flash))
+    while len(further_possible_moves) > 0:
+        for further_possible_move in further_possible_moves:
+            possible_moves.append(further_possible_move)
+            to_flash.append(further_possible_move["end"])
+        further_possible_moves = compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn)
+            
+    print("further possible moves: "+str(further_possible_moves))
+    for further_possible_move in further_possible_moves:
+        possible_moves.append(further_possible_move)
+        to_flash.append(further_possible_move["end"])
+        
+    print("\nCombined possible moves: ")
+    for move in possible_moves:
+        print(move)
         
     ## All possible moves have been determined and copied to to_flash ##
     ## Highlight these boxes to show user what they can do ##
@@ -541,37 +600,14 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
         
         ## Now that possible moves are highlighted, allow player to click something ##
         ## If they click a valid box, then return the info ##
-        piece,boxes,moved,jumped = move_piece(
-            window,boxes,piece,to_flash,start_box,turn,capture_jump_list)
-        
-        if jumped != "":
-            pass
-        
+        piece,pieces,boxes,moved,jumped = move_piece(
+            window,boxes,pieces,piece,possible_moves,start_box,turn)
         if settings["debug"]:
-            print("\n**CONTINUE check_for_move\n")
-            print("move_piece returned the following data:")
-            print("piece: "+str(piece))
-            print("boxes: (truncated due to lots of data)")
-            print("moved: "+str(moved))
-            print("capture_jump: "+str(capture_jump))
-            print("len(capture_jump): "+str(len(capture_jump))+"\n")
             print("jumped: "+str(jumped))
-            print("can_capture: "+str(can_capture))
-            
-        for can_capture in can_capture_list:
-            if (len(can_capture) > 0 and moved) and (len(capture_jump) > 0) and jumped != "":
-                for can_cap in can_capture:
-                    if (jumped["x"] == can_cap["x"] and jumped["y"] == can_cap["y"]):
-                        if settings["debug"]:
-                            print("can_cap: "+str(can_cap))
-                        pieces.remove(can_cap)
-                        can_cap["obj"].undraw()
-                        can_capture.remove(can_cap)
 
-                        for box_a in boxes:
-                            if can_cap["x"] == box_a["x"] and can_cap["y"] == box_a["y"]:
-                                box_a["side"] = ""
-                    
+        if jumped != None and jumped != "":
+            boxes,pieces = remove_piece(window,boxes,pieces,jumped)
+            
         ## After choice is made, remove flash effect ##
         time.sleep(0.2)
         for box in to_flash:
@@ -589,32 +625,12 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
         print("^^ END check_for_move\n")
     return(piece,moved)
 
-## TEST ##
 
-
-def scan_boxes(window,boxes,start_box,piece,turn,pieces):
+def scan_boxes(window,boxes,start_box,piece,turn,pieces,multi,kill):
     ## Takes a start_box and piece to determine starting position
-    ##
     ## GOAL: reduce output to a single list: possible_moves ##
-    ##
-    ## Presently, returns all of the following:
-    ## Returns to_flash: a list of boxes to hightlight
-    ## ## ["end"] in each possible_moves becomes to_flash
-    ##
-    ## Returns capture_jump_list: a list of dictionaries that relates a box containing an...
-    ## ... opposing piece with the box behind it, which the piece can jump to ##
-    ## Returns can_jump_to: a single box, which is behind an opposing piece ##
-    ## ## can_jump_to comes from capture_jump_list
-    ## Returns can_capture: a piece that is to be removed from the board ##
-    ## ## can_capture comes from capture_jump_list
-    ## Returns where: a list of strings that describe directional relation to opposing pieces ##
-    
-    ## Piece level determines which directions piece can move
-    ## Scans boxes adjacent to start_box, looking for opposing pieces
-    ## For each opposing piece, we run check_for_jump
-    ## ## check_for_jump returns to tell if opposing piece can be jumped
-    ## ## If opposing piece can be jumped, add it to list of possible moves
-    
+    ## kill contains a box with a piece to be removed during a multijump ##
+
     ## Get basic coordinates for possible basic moves ##
     ## Function will check to see if these squares are open ##
     to_flash = []
@@ -633,10 +649,6 @@ def scan_boxes(window,boxes,start_box,piece,turn,pieces):
     right = start_box["x"] + 1
     above = start_box["y"] - 1
     below = start_box["y"] + 1
-    #left = piece["x"] - 1
-    #right = piece["x"] + 1
-    #above = piece["y"] - 1
-    #below = piece["y"] + 1
     
     ## How to prevent level 0 pieces from moving backwards? ##
     ## Side A moves down; Side B moves up ##
@@ -652,78 +664,67 @@ def scan_boxes(window,boxes,start_box,piece,turn,pieces):
     ## While multijump == True loop? ##
     for box in boxes:
         ## Make sure the X variable matches ##
-        if (box["x"] == left) or (box["x"] == right):
-            ## Make sure the Y variable matches too ##
-            if (box["y"] == below) or (box["y"] == above):
-                ## If adjacent box is empty, then a move is possible ##
-                ## In this case, add the box to the to_flash list ##
-                if box["side"] == "":
-                    if settings["debug"]:
-                        print("Moves available!")
-                    to_flash.append(box)
+        if (box["x"] == left or box["x"] == right) and (box["y"] == below or box["y"] == above):
+            ## If adjacent box is empty, then a move is possible ##
+            ## In this case, add the box to the to_flash list ##
+            if box["side"] == "" and multi == False:
+            #if box["side"] == "" and not multi:
+                if settings["debug"]:
+                    print("Moves available!")
+                to_flash.append(box)
                     
-                    possible_moves.append(
-                        {"type": "basic", "start": start_box, "end": box, "mid": None,})
+                possible_moves.append(
+                    {"type": "basic", "start": start_box, "end": box, "mid": None, "kill": []})
                     
-                ## If adjacent box contains an opposing piece, then capture is possible ##
-                ## Capturable pieces added to can_capture list ##
-                ## What if I had a piece of data that contained the capturable piece as well
-                ## ## as the box which they would need to jump to to capture it ##
-                elif box["side"] != turn:
+            ## If adjacent box contains an opposing piece, then capture is possible ##
+            elif box["side"] != turn and box["side"] != "":
+                if settings["debug"]:
+                    print("Opposing piece adjacent!")
+                ## Then caulculate where piece would end up after capture ##
+                ## And check if further jumps are possible ##
+                ## Can I use recursion here? ##
+                if box["x"] == left and box["y"] == below:
+                    where.append("left below")
+                elif box["x"] == left and box["y"] == above:
+                    where.append("left above")
+                elif box["x"] == right and box["y"] == below:
+                    where.append("right below")
+                elif box["x"] == right and box["y"] == above:
+                    where.append("right above")
+                ## Get the square that the piece can jump to ##
+                can_jump_to = check_for_jump(boxes,start_box,box,piece,turn,where,multi)
+                ## Check if can_jump_to is empty or not ##
+                if can_jump_to == []:
                     if settings["debug"]:
-                        print("Opposing piece adjacent!")
-                    ## Then caulculate where piece would end up after capture ##
-                    ## And check if further jumps are possible ##
-                    ## Can I use recursion here? ##
-                    if box["x"] == left and box["y"] == below:
-                        where.append("left below")
-                    elif box["x"] == left and box["y"] == above:
-                        where.append("left above")
-                    elif box["x"] == right and box["y"] == below:
-                        where.append("right below")
-                    elif box["x"] == right and box["y"] == above:
-                        where.append("right above")
-                    ## Get the square that the piece can jump to ##
-                    can_jump_to = check_for_jump(boxes,start_box,box,piece,turn,where)
-                    ## Check if can_jump_to is empty or not ##
-                    if can_jump_to == []:
-                        if settings["debug"]:
-                            print("can_jump_to is empty!")
+                        print("can_jump_to is empty!")
                     ## Package the square that can be jumped and the one that can be jumped to
-                    else:                
-                        to_box = box.copy()
-                        
-                        capture_jump = {"to_jump": to_box, "jump_to": can_jump_to}
-                        capture_jump_list.append(capture_jump)
-
-                        if settings["debug"]:
-                            print('capture_jump["to_jump"]'+str(capture_jump["to_jump"]))
-                            print('capture_jump["jump_to"]'+str(capture_jump["jump_to"]))
-                            print("can_jump_to is NOT empty")
-                        #multijump = True
-                        
+                else:                
+                    if multi:
+                        ## Need to make sure start_box and can_jump_to have different x and y
+                        if start_box["x"] == can_jump_to["x"] or start_box["y"] == can_jump_to["y"]:
+                            pass
+                        else:
+                            possible_moves.append(
+                                {"type": "multi", "start": start_box, "end": can_jump_to, "mid": box, "kill": [kill]})
+                    else:
                         possible_moves.append(
-                            {"type": "jump", "start": start_box, "end": can_jump_to, "mid": to_box,})
-                    
-                    ## How to remove captured piece from the board? ##
-                    ## Store jumpable piece info ##
-                    for p in pieces:
-                        if p["x"] == box["x"] and p["y"] == box["y"]:
-                            can_capture.append(p)
-    print("\n-----\nPossible Moves:")
-    for move in possible_moves:
-        print(str(move)+"\n")
-    return(capture_jump_list,to_flash,can_jump_to,can_capture,where,multijump)
+                            {"type": "jump", "start": start_box, "end": can_jump_to, "mid": box, "kill": []})
+    if settings["debug"]:                    
+        print("\n-----\nPossible Moves:")
+        for move in possible_moves:
+            print(str(move)+"\n")
+    return(possible_moves)
 
 
 ## For multi-jumps, perhaps re-run this function with a new start_box and jump_box? ##
-def check_for_jump(boxes,start_box,jump_box,piece,turn,where_list):
+def check_for_jump(boxes,start_box,mid_box,piece,turn,where_list,multi):
     ## Takes a start_box (players selected piece) and a jump_box (adjacent opposing piece) ##
     ## Returns a single square behind the piece to be jumped ##
     ## If nothing is returned, then no jump is possible ##
     ## Start_box is where the piece starts, jump_box is the box with the opposing piece ##
     if settings["debug"]:
         print("\nvvvv START check_for_jump\n")
+        print("checking from "+str(start_box["x"])+","+str(start_box["y"]))
     ## Player has selected a piece that they own ##
     ## Chosen piece is adjacent to opposing pieces ##
     ## Highlight the boxes they can jump to behind the opposing piece ##
@@ -735,40 +736,46 @@ def check_for_jump(boxes,start_box,jump_box,piece,turn,where_list):
         print("where list: "+str(where_list))
     for where in where_list:
         if where == "left below":
-            target_x = jump_box["x"] - 1
-            target_y = jump_box["y"] + 1
+            target_x = mid_box["x"] - 1
+            target_y = mid_box["y"] + 1
         elif where == "left above":
-            target_x = jump_box["x"] - 1
-            target_y = jump_box["y"] - 1
+            target_x = mid_box["x"] - 1
+            target_y = mid_box["y"] - 1
         elif where == "right below":
-            target_x = jump_box["x"] + 1
-            target_y = jump_box["y"] + 1
+            target_x = mid_box["x"] + 1
+            target_y = mid_box["y"] + 1
         elif where == "right above":
-            target_x = jump_box["x"] + 1
-            target_y = jump_box["y"] - 1
+            target_x = mid_box["x"] + 1
+            target_y = mid_box["y"] - 1
     
         ## Check each box to see if we have any matches ##
         for box in boxes:
-            ## If the coordinates match and box is empty ##
-            if target_x == box["x"] and target_y == box["y"] and box["side"] == "" and (
-                target_x != piece["x"] and target_y != piece["y"]):
-                can_jump_to = box
+            ## If the coordinates match, box is empty, and box is not already occupied by piece ##
+            if target_x == box["x"] and target_y == box["y"] and box["side"] == "":
+                if multi == False and (target_x != piece["x"] and target_y != piece["y"]):
+                    can_jump_to = box
+                elif multi == True:
+                    can_jump_to = box
     if settings["debug"]:
         print("****can_jump_to: "+str(can_jump_to))
         print("^^^^ END check_for_jump\n")
     return(can_jump_to)
+
+
+## Takes players click coords and compares to possible_moves ##
 ## Returns list can_jump_to, which can have 0 or 1 elements ##
-
-
-def get_player_move(window,boxes,to_flash,clickPoint):
+def get_player_move(window,boxes,possible_moves,clickPoint):
+    to_flash = []
+    for possible_move in possible_moves:
+        to_flash.append(possible_move["end"])
     for box in boxes:
-        if (clickPoint.getX() >= box["center_x"] - box["radius"]) and (clickPoint.getX() <= box["center_x"] + box["radius"]) and (clickPoint.getY() >= box["center_y"] - box["radius"]) and (clickPoint.getY() <= box["center_y"] + box["radius"]) and (box in to_flash):
+        if compare_click(clickPoint,box) and (box in to_flash):
             return(box)
     return(None)
 
         
 ## All possible moves are highlighted: now let player click on one of them ##
-def move_piece(window,boxes,piece,to_flash,start_box,turn,capture_jump_list):
+def move_piece(window,boxes,pieces,piece,possible_moves,start_box,turn):
     if settings["debug"]:
         print("\nvvv START move_piece\n")
         
@@ -781,14 +788,12 @@ def move_piece(window,boxes,piece,to_flash,start_box,turn,capture_jump_list):
     
     ## Take clickPoint and see if it matches any of the boxes ##
     ## Return the box if it does -- return None if it doesn't ##
-    box = get_player_move(window,boxes,to_flash,clickPoint)
+    box = get_player_move(window,boxes,possible_moves,clickPoint)
     
     ## Make sure a box was returned ##
     if box != None:
-        ## How to check if box selected is a multijump? ##
-        
-        
-        
+        ## ##
+        ## ## ## vv VISUAL UPDATE HERE vv ## ## ##
         ## Using returned box, gather info ##
         box_x = box["center_x"]
         box_y = box["center_y"]
@@ -813,75 +818,61 @@ def move_piece(window,boxes,piece,to_flash,start_box,turn,capture_jump_list):
         box["side"] = turn
         update()
         moved = True
-
+        ## ## ## ^^ VISUAL UPDATE HERE ^^ ## ## ##
+        ## ##
+        
         ## Check if a piece was jumped ##
-        try:
-            jumped = which_jumped(boxes,start_box,box,capture_jump_list)
-        except:
-            jumped = ""
+        jumped,move = which_jumped(boxes,start_box,box,possible_moves)
         ## Jumped may be returned as "", in which case nothing was jumped ##
-        if jumped != "":
-            pass
+        if jumped != "" and jumped != None:
+            boxes, pieces = remove_piece(window,boxes,pieces,jumped)
+            if len(move["kill"]) > 0:
+                for to_kill in move["kill"]:
+                    boxes, pieces = remove_piece(window,boxes,pieces,to_kill)
 
         piece = check_for_upgrade(piece,boxes)
             
     if settings["debug"]:
         print("^^^ END move_piece\n")
 
-    return(piece,boxes,moved,jumped)
+    return(piece,pieces,boxes,moved,jumped)
 
 
 ## Called by move_piece ##
 ## Player has made their move, we have start_box and end_box ##
-## >> We also need a jump_sequence list, with each start_box and end_box ##
-## Now we determine which piece was jumped over ##
-## Iterate through capture_jump_list and try to match up a ["to_jump"] box with mid_box ##
-def which_jumped(boxes,start_box,end_box,capture_jump_list):
+## We scan throguh possible moves list to locate one whose mid-box is between start and end box ##
+def which_jumped(boxes,start_box,end_box,possible_moves):
     jumped = ""
     if settings["debug"]:
         print("\nvvvvv START which_jumped")
-        for capture_jump in capture_jump_list:
-            print("capture_jump: "+str(capture_jump))
-    jump_sequence = []
-    ## Maybe a list of mid-boxes? ##
-    #for jump in jump_sequence:
-    #    print(jump)
-    mid_box = calculate_mid_box(start_box,end_box)
-    #    if jump["capture_box"] == mid_box:
-    #        print("capture box found successfully")
-    ## Iterate through list ##
-    for capture_jump in capture_jump_list:
-        ## Only continue if list item is not empty ##
-        if len(capture_jump) > 0:
-            ## Try to match up mid_box x and y with capture_jump["to_jump"] ##
-            if mid_box["x"] == capture_jump["to_jump"]["x"] and mid_box["y"] == capture_jump["to_jump"]["y"]:
-                ## If a match is found, then copy box info to jumped ##
-                jumped = mid_box
+        for possible_move in possible_moves:
+            print("possible_move: "+str(possible_move))
+
+    for possible_move in possible_moves:
+        if compare_box_coords(possible_move["end"],end_box):
+                jumped = possible_move["mid"]
+                move = possible_move
+                
     if settings["debug"]:
         print("\v^^^^^ END which_jumped")
     ## Return box that was jumped, or "" if none was jumped ##
-    return(jumped)
+    return(jumped,move)
+
+    
+    
+    
+
+## ##
+
+## ##
+
+## ##
+
+## ##
 
 
-def which_jumped_backup(boxes,start_box,end_box,capture_jump_list):
-    jumped = ""
-    if settings["debug"]:
-        print("\nvvvvv START which_jumped")
-        for capture_jump in capture_jump_list:
-            print("capture_jump: "+str(capture_jump))
-    mid_box = calculate_mid_box(jump["start_box"],jump["end_box"])
-    ## Iterate through list ##
-    for capture_jump in capture_jump_list:
-        ## Only continue if list item is not empty ##
-        if len(capture_jump) > 0:
-            ## Try to match up mid_box x and y with capture_jump["to_jump"] ##
-            if mid_box["x"] == capture_jump["to_jump"]["x"] and mid_box["y"] == capture_jump["to_jump"]["y"]:
-                ## If a match is found, then copy box info to jumped ##
-                jumped = mid_box
-    if settings["debug"]:
-        print("\v^^^^^ END which_jumped")
-    ## Return box that was jumped, or "" if none was jumped ##
-    return(jumped)
+    
+
 
 
 ## Takes a box_jump sequence and returns a list of boxes captured during the sequence ##
@@ -895,15 +886,6 @@ def calculate_jumps(box_jump_sequence):
         to_capture.append(mid_box)
     return(to_capture)
         
-
-## Takes a start and end box, and finds the box between them: mid_box ##
-## Works best if boxes are 45 degrees diagonal and have 1 box between them ##
-def calculate_mid_box(start_box,end_box):
-    mid_box = {"x": 0, "y": 0}
-    mid_box["x"] = (start_box["x"] + end_box["x"]) / 2
-    mid_box["y"] = (start_box["y"] + end_box["y"]) / 2
-    return(mid_box)
-
 
 def check_for_multijump(boxes,start_box,piece):
     ## THEORY ##
@@ -986,12 +968,24 @@ def test_create_capture_jump_list(boxes,piece,start_box):
     check_box = ""
     turn = side
     
-    
     for box in boxes:
         if box["x"] == start_box["x"] and box["y"] == start_box["y"]:
             check_box = box
     
     to_flash = check_for_jump(boxes,start_box,check_box,piece,turn,where_list)
+    
+    
+    
+
+## ##
+
+## ##
+
+## ##
+
+## ##
+
+
     
     
 ## Works perfectly ##
