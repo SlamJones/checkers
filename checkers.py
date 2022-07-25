@@ -30,8 +30,12 @@ settings = {
 ## Can make multijumps, however:
 ## In multijumps, after first jump, piece sometimes disobeys straight-line law (makes curved jumps) ##
 ## In multijumps, sometimes a multijump is not recognized if a move takes a piece to the edge of the board ##
-## Does not find multijumps greater than 2 ##
+## Does not find multijumps greater than 3? ##
 ## Recursion? ##
+## Can create an infite loop with level 1 pieces ##
+## Probably ends up going around two pieces infinitely ##
+## Store some data to prevent this? ##
+
 
 
 ## Works perfectly ##
