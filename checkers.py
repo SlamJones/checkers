@@ -27,7 +27,12 @@ settings = {
 
 
 ## CURRENT ISSUES ##
-## None to speak of!  Keep looking, they're sure to be in there! ##
+## Level 1 red piece unable to find a 2 jump when there are 2 different jump directions available ##
+## Level 1 red piece unable to find a 3 jump when there are 2 different jump directions after a 1 jump ##
+## Does not find multijumps beyond 3 jumps ##
+## Does not find 3+ jumps if there are multiple 2 jumps available ##
+## Where paths diverge, only 1 additional jump is shown ##
+## Maybe go back to jump_path_list idea?  Sorta like in CarPG? ##
 
 
 ## RECENTLY FIXED ISSUE: CHECK TO MAKE SURE IT IS FULLY FIXED ##
