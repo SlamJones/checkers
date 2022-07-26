@@ -27,6 +27,10 @@ settings = {
 
 
 ## CURRENT ISSUES ##
+## None to speak of!  Keep looking, they're sure to be in there! ##
+
+
+## RECENTLY FIXED ISSUE: CHECK TO MAKE SURE IT IS FULLY FIXED ##
 ## Can make multijumps, however:
 ## In multijumps using a level 1 piece, the first jumped piece is very often not removed ##
 ## Somehow the first jumped piece is not added to kill list ##
@@ -537,13 +541,14 @@ def remove_piece(window,boxes,pieces,to_remove):
 
 
 ## Takes a list of possible moves, and check for further possible moves ##
-def compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn):
-    kill = []
+def compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn,kill):
+    #kill = []
     further_possible_moves = []
     for possible_move in possible_moves:
         if possible_move["type"] == "jump" or possible_move["type"] == "multi":
             ## kill contains a list of boxes with a piece to be removed during a multijump ##
-            kill = possible_move["mid"]
+            if possible_move["mid"] not in kill:
+                kill.append(possible_move["mid"])
             if settings["debug"]:
                 print("scanning for multijumps from "+str(possible_move["end"]))
             further_possible_moves = scan_boxes(
@@ -573,13 +578,14 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
     capture_jump = ""
     can_capture_list = []
     to_flash = []
-    kill = ""
+    #kill = ""
+    kill = []
     stop_search = False
     
     possible_moves = scan_boxes(window,boxes,start_box,piece,turn,pieces,False,kill)
     to_flash = calc_to_flash(possible_moves)
     
-    further_possible_moves = compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn)
+    further_possible_moves = compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn,kill)
     further_to_flash = calc_to_flash(further_possible_moves)
     
     
@@ -595,7 +601,7 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
                     print("appending to possible_moves: "+str(further_possible_move))
                 possible_moves.append(further_possible_move)
                 to_flash.append(further_possible_move["end"])
-        further_possible_moves = compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn)
+        further_possible_moves = compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn,kill)
     
     if settings["debug"]:
         print("further possible moves: "+str(further_possible_moves))
@@ -722,7 +728,7 @@ def scan_boxes(window,boxes,start_box,piece,turn,pieces,multi,kill):
                             pass
                         else:
                             possible_moves.append(
-                                {"type": "multi", "start": start_box, "end": can_jump_to, "mid": box, "kill": [kill]})
+                                {"type": "multi", "start": start_box, "end": can_jump_to, "mid": box, "kill": kill})
                     else:
                         possible_moves.append(
                             {"type": "jump", "start": start_box, "end": can_jump_to, "mid": box, "kill": []})
