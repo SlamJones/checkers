@@ -28,14 +28,10 @@ settings = {
 
 ## CURRENT ISSUES ##
 ## Can make multijumps, however:
-## In multijumps, after first jump, piece sometimes disobeys straight-line law (makes curved jumps) ##
-## In multijumps, sometimes a multijump is not recognized if a move takes a piece to the edge of the board ##
-## Does not find multijumps greater than 3? ##
-## Recursion? ##
-## Can create an infite loop with level 1 pieces ##
-## Probably ends up going around two pieces infinitely ##
-## Store some data to prevent this? ##
-
+## In multijumps using a level 1 piece, the first jumped piece is very often not removed ##
+## This does NOT occur when making multijumps with a level 0 piece ##
+## What the hell could cause this??? ##
+## Find pieces of code that allude to level and determine how they affect the process stack ##
 
 
 ## Works perfectly ##
@@ -531,7 +527,8 @@ def remove_piece(window,boxes,pieces,to_remove):
     for box in boxes:
         if to_remove["x"] == box["x"] and to_remove["y"] == box["y"]:
             box["side"] = ""
-            print("side data removed from box")
+            if settings["debug"]:
+                print("side data removed from box")
     return(boxes,pieces)
 
 
@@ -573,6 +570,7 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
     can_capture_list = []
     to_flash = []
     kill = ""
+    stop_search = False
     
     possible_moves = scan_boxes(window,boxes,start_box,piece,turn,pieces,False,kill)
     to_flash = calc_to_flash(possible_moves)
@@ -580,20 +578,31 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
     further_possible_moves = compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn)
     further_to_flash = calc_to_flash(further_possible_moves)
     
-    while len(further_possible_moves) > 0:
+    
+    while len(further_possible_moves) > 0 and not stop_search:
         for further_possible_move in further_possible_moves:
-            possible_moves.append(further_possible_move)
-            to_flash.append(further_possible_move["end"])
+            ## To prevent infinite loops, as soon as we get a box for a second time, stop the loop ##
+            if further_possible_move in possible_moves:
+                if settings["debug"]:
+                    print("Possible Move already here!  Ending loop manually!")
+                stop_search = True
+            else:
+                if settings["debug"]:
+                    print("appending to possible_moves: "+str(further_possible_move))
+                possible_moves.append(further_possible_move)
+                to_flash.append(further_possible_move["end"])
         further_possible_moves = compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn)
-            
-    print("further possible moves: "+str(further_possible_moves))
+    
+    if settings["debug"]:
+        print("further possible moves: "+str(further_possible_moves))
     for further_possible_move in further_possible_moves:
         possible_moves.append(further_possible_move)
         to_flash.append(further_possible_move["end"])
         
-    print("\nCombined possible moves: ")
-    for move in possible_moves:
-        print(move)
+    if settings["debug"]:
+        print("\nCombined possible moves: ")
+        for move in possible_moves:
+            print(move)
         
     ## All possible moves have been determined and copied to to_flash ##
     ## Highlight these boxes to show user what they can do ##
