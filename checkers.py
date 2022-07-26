@@ -22,14 +22,18 @@ settings = {
     "color_c": "red",
     "color_c2": "red4",
     "color_d": "yellow",
-    "debug": False,
+    "debug": True,
 }
 
 
 ## CURRENT ISSUES ##
 ## Can make multijumps, however:
 ## In multijumps using a level 1 piece, the first jumped piece is very often not removed ##
-## This does NOT occur when making multijumps with a level 0 piece ##
+## Somehow the first jumped piece is not added to kill list ##
+## ## It appears that kill list only ever contains one element!  It should be able to contain more ##
+## This does occur when making multijumps with a level 0 piece ##
+## ## For level 0 pieces, the first and second jumps work fine.  After that, further pieces not removed ##
+## ## For level 1 pieces, the first jump is often not removed, even in 2-jump multijumps ##
 ## What the hell could cause this??? ##
 ## Find pieces of code that allude to level and determine how they affect the process stack ##
 
