@@ -29,10 +29,18 @@ settings = {
 ## CURRENT ISSUES ##
 ## Level 1 red piece unable to find a 2 jump when there are 2 different jump directions available ##
 ## Level 1 red piece unable to find a 3 jump when there are 2 different jump directions after a 1 jump ##
+## ## Probably applies to both white and red pieces ##
 ## Does not find multijumps beyond 3 jumps ##
 ## Does not find 3+ jumps if there are multiple 2 jumps available ##
 ## Where paths diverge, only 1 additional jump is shown ##
 ## Maybe go back to jump_path_list idea?  Sorta like in CarPG? ##
+## A list of possible paths, expanding into all possible paths for piece ##
+## Compare start and end boxes to determine path? ##
+## Or would there be overlapping paths that confuse the script? ##
+
+## ## Level 1 pieces possible_moves seems to add 2 extra possible multis when a multi is present ##
+## ## In a 2+ multijump, if player only chooses to do a partial jump, all pieces from full multijump are removed, instead of just the pieces that should be removed ##
+## ## Need to lookup actual checkers rules to see if that is even supposed to be possible! ##
 
 
 ## RECENTLY FIXED ISSUE: CHECK TO MAKE SURE IT IS FULLY FIXED ##
@@ -251,6 +259,8 @@ def draw_grid_outline(window,x1,x2,y1,y2):
     
     
 ## Works perfectly ##
+## Uses a magic number: 8 ##
+## But maybe this is okay just this once, since chess boards are always 8 x 8 ##
 def draw_grid(window,x1,x2,y1,y2):
     ## Taking calculate points, draw the individual squares that make up the grid ##
     ## Determine how tall and wide the outline box is ##
@@ -472,6 +482,10 @@ def compare_box_coords(box_a,box_b):
 
 ## ##
 
+## ##
+
+## ##
+
 
 
 
@@ -547,7 +561,6 @@ def remove_piece(window,boxes,pieces,to_remove):
 
 ## Takes a list of possible moves, and check for further possible moves ##
 def compile_possible_moves(window,boxes,possible_moves,pieces,piece,turn,kill):
-    #kill = []
     further_possible_moves = []
     for possible_move in possible_moves:
         if possible_move["type"] == "jump" or possible_move["type"] == "multi":
@@ -571,7 +584,7 @@ def calc_to_flash(possible_moves):
 
 ## Player has clicked on a piece that they own ##
 ## They have not yet committed to moving this piece ##
-## But we need to show them what moves are possible with this piece ##
+## Gather a list and show them what moves are possible with this piece ##
 def check_for_move(window,boxes,start_box,piece,pieces,turn):
     ## Player has selected a piece that they own ##
     ## Highlight the squares that this particular piece can move to ##
@@ -599,7 +612,7 @@ def check_for_move(window,boxes,start_box,piece,pieces,turn):
             ## To prevent infinite loops, as soon as we get a box for a second time, stop the loop ##
             if further_possible_move in possible_moves:
                 if settings["debug"]:
-                    print("Possible Move already here!  Ending loop manually!")
+                    print("--- Possible Move already here!  Ending loop manually! ---")
                 stop_search = True
             else:
                 if settings["debug"]:
@@ -668,6 +681,7 @@ def scan_boxes(window,boxes,start_box,piece,turn,pieces,multi,kill):
     capture_jump_list = []
     where = []
     possible_moves = []
+    test_possible_moves = []
     moved = False
     jumped = False
     multijump = False
@@ -703,6 +717,11 @@ def scan_boxes(window,boxes,start_box,piece,turn,pieces,multi,kill):
                     
                 possible_moves.append(
                     {"type": "basic", "start": start_box, "end": box, "mid": None, "kill": []})
+                
+                test_possible_moves.append(
+                    {"start": start_box, "jumps": [
+                        {"x": box["x"], "y": box["y"]},
+                    ]})
                     
             ## If adjacent box contains an opposing piece, then capture is possible ##
             elif box["side"] != turn and box["side"] != "":
@@ -719,7 +738,7 @@ def scan_boxes(window,boxes,start_box,piece,turn,pieces,multi,kill):
                     where.append("right below")
                 elif box["x"] == right and box["y"] == above:
                     where.append("right above")
-                ## Get the square that the piece can jump to ##
+                ## Get the square that the piece can jump to if possible ##
                 can_jump_to = check_for_jump(boxes,start_box,box,piece,turn,where,multi)
                 ## Check if can_jump_to is empty or not ##
                 if can_jump_to == []:
@@ -734,12 +753,23 @@ def scan_boxes(window,boxes,start_box,piece,turn,pieces,multi,kill):
                         else:
                             possible_moves.append(
                                 {"type": "multi", "start": start_box, "end": can_jump_to, "mid": box, "kill": kill})
+                            test_possible_moves.append({"start": start_box, "jumps": [
+                                {"x": start_box["x"],"y":start_box["y"]},
+                                {"x": box["x"],"y":box["y"],}]})
                     else:
                         possible_moves.append(
                             {"type": "jump", "start": start_box, "end": can_jump_to, "mid": box, "kill": []})
+                        
+                        test_possible_moves.append({"start": start_box, "jumps": [
+                            {"x": start_box["x"],"y":start_box["y"]},
+                            {"x": box["x"],"y":box["y"],}]})
+                            
     if settings["debug"]:                    
-        print("\n-----\nPossible Moves:")
+        print("\n-----\nPossible Moves:\n")
         for move in possible_moves:
+            print(str(move)+"\n")            
+        print("\n-----\nTest Possible Moves:\n")
+        for move in test_possible_moves:
             print(str(move)+"\n")
     return(possible_moves)
 
